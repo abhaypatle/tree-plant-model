@@ -61,17 +61,58 @@ st.markdown("""
 st.markdown("""
 <div class="title-box">
     <h1>🌿 Plant Health Assistant</h1>
-    <p>AI Powered Tree vs Plant Classification + Health Report System</p>
+    <p>AI Powered Tree vs Plant Classification + Plant Report System</p>
 </div>
 """, unsafe_allow_html=True)
+
+PLANT_DATABASE = {
+    "Unknown": {
+        "local_name": "Unknown",
+        "scientific_name": "Unknown",
+        "summary": "Plant species not selected. Basic plant health guidance is provided.",
+        "advantages": ["General plant care guidance available"],
+        "disadvantages": ["Exact species-level advice unavailable"],
+        "uses": ["Basic gardening and plant care"]
+    },
+    "Neem": {
+        "local_name": "Neem / नीम",
+        "scientific_name": "Azadirachta indica",
+        "summary": "Neem is a medicinal plant known for antibacterial, antifungal and natural pesticide properties.",
+        "advantages": ["Natural pesticide", "Medicinal leaves", "Improves soil health"],
+        "disadvantages": ["Very bitter taste", "Excess use may irritate skin", "Needs warm climate"],
+        "uses": ["Skin care", "Organic farming", "Herbal medicine"]
+    },
+    "Tulsi": {
+        "local_name": "Tulsi / तुलसी",
+        "scientific_name": "Ocimum tenuiflorum",
+        "summary": "Tulsi is a sacred medicinal plant commonly used for immunity, cough and respiratory health.",
+        "advantages": ["Boosts immunity", "Easy to grow", "Useful in herbal tea"],
+        "disadvantages": ["Sensitive to cold", "Needs regular watering", "Can dry in harsh sunlight"],
+        "uses": ["Tea", "Ayurvedic medicine", "Home remedy"]
+    },
+    "Mango": {
+        "local_name": "Aam / आम",
+        "scientific_name": "Mangifera indica",
+        "summary": "Mango is a fruit tree widely grown in India for fruits, shade and long-term plantation.",
+        "advantages": ["Fruit production", "Provides shade", "Long lifespan"],
+        "disadvantages": ["Needs large space", "Seasonal diseases possible", "Requires regular care"],
+        "uses": ["Fruits", "Pickles", "Wood and shade"]
+    },
+    "Aloe Vera": {
+        "local_name": "Ghritkumari / एलोवेरा",
+        "scientific_name": "Aloe barbadensis miller",
+        "summary": "Aloe Vera is a succulent medicinal plant used for skin care and minor burns.",
+        "advantages": ["Useful for skin", "Low maintenance", "Needs less water"],
+        "disadvantages": ["Overwatering can damage roots", "Not frost tolerant"],
+        "uses": ["Skin gel", "Cosmetics", "Home remedies"]
+    }
+}
 
 st.sidebar.title("📊 Project Info")
 st.sidebar.write("Model: CNN")
 st.sidebar.write("Classes: Tree, Plant")
-st.sidebar.write("Dataset Images: 111")
 st.sidebar.write("Framework: PyTorch")
-st.sidebar.write("Deployment: Streamlit Cloud")
-st.sidebar.write("Features: PDF, QR, Health Score, Treatment")
+st.sidebar.write("Features: PDF, QR, Health Score, Plant Details")
 
 if "history" not in st.session_state:
     st.session_state.history = []
@@ -180,7 +221,7 @@ def get_health_info(predicted_class, confidence):
     return severity, medicine, treatment
 
 
-def create_pdf(predicted_class, confidence, severity, medicine, treatment, health_score):
+def create_pdf(predicted_class, confidence, severity, medicine, treatment, health_score, plant_name, plant_details):
     pdf = FPDF()
     pdf.add_page()
 
@@ -189,27 +230,57 @@ def create_pdf(predicted_class, confidence, severity, medicine, treatment, healt
 
     pdf.ln(8)
     pdf.set_font("Arial", "", 12)
-    pdf.cell(0, 10, f"Date: {datetime.now().strftime('%d-%m-%Y %H:%M:%S')}", ln=True)
-    pdf.cell(0, 10, f"Prediction: {predicted_class}", ln=True)
-    pdf.cell(0, 10, f"Confidence: {confidence*100:.2f}%", ln=True)
-    pdf.cell(0, 10, f"Health Score: {health_score}/100", ln=True)
-    pdf.cell(0, 10, f"Severity Level: {severity}", ln=True)
-    pdf.cell(0, 10, f"Medicine Recommendation: {medicine}", ln=True)
+    pdf.cell(0, 8, f"Date: {datetime.now().strftime('%d-%m-%Y %H:%M:%S')}", ln=True)
+    pdf.cell(0, 8, f"Prediction: {predicted_class}", ln=True)
+    pdf.cell(0, 8, f"Confidence: {confidence*100:.2f}%", ln=True)
+    pdf.cell(0, 8, f"Health Score: {health_score}/100", ln=True)
+    pdf.cell(0, 8, f"Severity Level: {severity}", ln=True)
+    pdf.cell(0, 8, f"Medicine Recommendation: {medicine}", ln=True)
 
     pdf.ln(5)
-    pdf.set_font("Arial", "B", 12)
-    pdf.cell(0, 10, "Treatment Steps:", ln=True)
+    pdf.set_font("Arial", "B", 13)
+    pdf.cell(0, 8, "Plant Details", ln=True)
 
     pdf.set_font("Arial", "", 12)
+    pdf.cell(0, 8, f"Plant Name: {plant_name}", ln=True)
+    pdf.cell(0, 8, f"Local Name: {plant_details['local_name']}", ln=True)
+    pdf.cell(0, 8, f"Scientific Name: {plant_details['scientific_name']}", ln=True)
+    pdf.multi_cell(0, 8, "Short Summary: " + plant_details["summary"])
+
+    pdf.ln(3)
+    pdf.set_font("Arial", "B", 12)
+    pdf.cell(0, 8, "Advantages:", ln=True)
+    pdf.set_font("Arial", "", 12)
+    for item in plant_details["advantages"]:
+        pdf.multi_cell(0, 8, "- " + item)
+
+    pdf.set_font("Arial", "B", 12)
+    pdf.cell(0, 8, "Disadvantages:", ln=True)
+    pdf.set_font("Arial", "", 12)
+    for item in plant_details["disadvantages"]:
+        pdf.multi_cell(0, 8, "- " + item)
+
+    pdf.set_font("Arial", "B", 12)
+    pdf.cell(0, 8, "Uses:", ln=True)
+    pdf.set_font("Arial", "", 12)
+    for item in plant_details["uses"]:
+        pdf.multi_cell(0, 8, "- " + item)
+
+    pdf.ln(3)
+    pdf.set_font("Arial", "B", 12)
+    pdf.cell(0, 8, "Treatment Steps:", ln=True)
+    pdf.set_font("Arial", "", 12)
+
     for step in treatment:
-        pdf.multi_cell(0, 8, f"- {step}")
+        safe_step = step.replace("✅", "").replace("🌿", "").replace("📄", "")
+        pdf.multi_cell(0, 8, "- " + safe_step)
 
     pdf.ln(5)
     pdf.multi_cell(
         0,
         8,
         "Note: This app currently uses a Tree vs Plant model. "
-        "For real disease prediction, train a plant disease dataset model."
+        "For accurate disease and species prediction, train a plant disease/species dataset model."
     )
 
     return pdf.output(dest="S").encode("latin-1")
@@ -238,6 +309,12 @@ else:
 if uploaded_file is not None:
     image = Image.open(uploaded_file)
 
+    selected_plant = st.selectbox(
+        "Select Plant Name for Detailed Report",
+        list(PLANT_DATABASE.keys())
+    )
+    plant_details = PLANT_DATABASE[selected_plant]
+
     col_img, col_result = st.columns(2)
 
     with col_img:
@@ -260,7 +337,6 @@ if uploaded_file is not None:
         </div>
         """, unsafe_allow_html=True)
 
-        st.write("")
         if severity == "Low Risk":
             st.success("🟢 Low Risk")
         elif severity == "Medium Risk":
@@ -270,9 +346,6 @@ if uploaded_file is not None:
         else:
             st.info("ℹ️ Not a leaf disease case")
 
-    if confidence > 0.95:
-        st.balloons()
-
     st.markdown(f"""
     <div class="result-box">
         Prediction: {predicted_class.upper()} <br>
@@ -281,12 +354,38 @@ if uploaded_file is not None:
     </div>
     """, unsafe_allow_html=True)
 
+    st.markdown("### 🌿 Plant Name & Short Details")
+    st.markdown(f"""
+    <div class="info-box">
+        <b>Selected Plant:</b> {selected_plant}<br>
+        <b>Local Name:</b> {plant_details['local_name']}<br>
+        <b>Scientific Name:</b> <i>{plant_details['scientific_name']}</i><br>
+        <b>Short Summary:</b> {plant_details['summary']}
+    </div>
+    """, unsafe_allow_html=True)
+
+    col_a, col_b, col_c = st.columns(3)
+
+    with col_a:
+        st.write("### ✅ Advantages")
+        for item in plant_details["advantages"]:
+            st.write(f"- {item}")
+
+    with col_b:
+        st.write("### ⚠️ Disadvantages")
+        for item in plant_details["disadvantages"]:
+            st.write(f"- {item}")
+
+    with col_c:
+        st.write("### 🌱 Uses")
+        for item in plant_details["uses"]:
+            st.write(f"- {item}")
+
     st.write("### 🌿 Plant Health Score")
     st.progress(health_score / 100)
     st.write(f"Health Score: **{health_score}/100**")
 
     st.write("### 📊 Prediction Probabilities")
-
     prob_values = [p.item() for p in probabilities]
 
     fig, ax = plt.subplots(figsize=(5, 5))
@@ -300,7 +399,6 @@ if uploaded_file is not None:
         colors=colors[:len(class_names)],
         wedgeprops=dict(width=0.42)
     )
-
     centre_circle = plt.Circle((0, 0), 0.60, fc="white")
     fig.gca().add_artist(centre_circle)
     ax.set_title("Prediction Confidence Donut Chart")
@@ -324,7 +422,7 @@ if uploaded_file is not None:
         st.write(f"✅ {step}")
 
     st.session_state.history.append(
-        f"{predicted_class} - {confidence*100:.2f}% - {severity}"
+        f"{predicted_class} - {confidence*100:.2f}% - {severity} - {selected_plant}"
     )
 
     st.write("### 🕘 Prediction History")
@@ -338,6 +436,9 @@ Prediction: {predicted_class}
 Confidence: {confidence*100:.2f}%
 Health Score: {health_score}/100
 Severity: {severity}
+Plant Name: {selected_plant}
+Local Name: {plant_details['local_name']}
+Scientific Name: {plant_details['scientific_name']}
 Medicine: {medicine}
 """
 
@@ -351,7 +452,9 @@ Medicine: {medicine}
         severity,
         medicine,
         treatment,
-        health_score
+        health_score,
+        selected_plant,
+        plant_details
     )
 
     col_pdf, col_qr = st.columns(2)
@@ -374,4 +477,4 @@ Medicine: {medicine}
 
 st.markdown("---")
 st.markdown("### 🛠 Tech Stack")
-st.write("Python | PyTorch | CNN | Streamlit | Computer Vision | PDF | QR Code | Donut Chart")
+st.write("Python | PyTorch | CNN | Streamlit | Computer Vision | PDF | QR Code | Plant Info")
