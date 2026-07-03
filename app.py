@@ -8,7 +8,9 @@ from fpdf import FPDF
 import qrcode
 import io
 from datetime import datetime
-
+from reportlab.lib.pagesizes import A4
+from reportlab.pdfgen import canvas
+from reportlab.lib.units import inch
 MODEL_PATH = "simple_cnn_model.pth"
 IMAGE_SIZE = (250, 250)
 
@@ -222,66 +224,76 @@ def get_health_info(predicted_class, confidence):
 
 
 def create_pdf(predicted_class, confidence, severity, medicine, treatment, health_score, plant_name, plant_details):
-    def safe_text(text):
-        return str(text).encode("latin-1", "replace").decode("latin-1")
+    buffer = io.BytesIO()
 
-    pdf = FPDF()
-    pdf.add_page()
-    pdf.set_auto_page_break(auto=True, margin=15)
+    c = canvas.Canvas(buffer, pagesize=A4)
+    width, height = A4
 
-    pdf.set_font("Arial", "B", 16)
-    pdf.cell(0, 10, safe_text("Plant Health Prediction Report"), ln=True, align="C")
+    y = height - 50
 
-    pdf.ln(8)
-    pdf.set_font("Arial", "", 12)
+    def write_line(text, font="Helvetica", size=11, gap=18):
+        nonlocal y
+        c.setFont(font, size)
 
-    lines = [
-        f"Date: {datetime.now().strftime('%d-%m-%Y %H:%M:%S')}",
-        f"Prediction: {predicted_class}",
-        f"Confidence: {confidence*100:.2f}%",
-        f"Health Score: {health_score}/100",
-        f"Severity Level: {severity}",
-        f"Medicine Recommendation: {medicine}",
-        "",
-        "Plant Details",
-        f"Plant Name: {plant_name}",
-        f"Local Name: {plant_details['local_name']}",
-        f"Scientific Name: {plant_details['scientific_name']}",
-        f"Short Summary: {plant_details['summary']}",
-        "",
-        "Advantages:"
-    ]
+        text = str(text).replace("✅", "").replace("🌿", "").replace("📄", "")
 
-    for line in lines:
-        pdf.multi_cell(0, 8, safe_text(line))
+        if y < 60:
+            c.showPage()
+            y = height - 50
+            c.setFont(font, size)
 
+        c.drawString(50, y, text[:95])
+        y -= gap
+
+    def write_section(title):
+        write_line(title, "Helvetica-Bold", 13, 22)
+
+    c.setFont("Helvetica-Bold", 16)
+    c.drawCentredString(width / 2, y, "Plant Health Prediction Report")
+    y -= 35
+
+    write_section("Prediction Details")
+    write_line(f"Date: {datetime.now().strftime('%d-%m-%Y %H:%M:%S')}")
+    write_line(f"Prediction: {predicted_class}")
+    write_line(f"Confidence: {confidence*100:.2f}%")
+    write_line(f"Health Score: {health_score}/100")
+    write_line(f"Severity Level: {severity}")
+    write_line(f"Medicine Recommendation: {medicine}")
+
+    y -= 10
+    write_section("Plant Details")
+    write_line(f"Plant Name: {plant_name}")
+    write_line(f"Local Name: {plant_details['local_name']}")
+    write_line(f"Scientific Name: {plant_details['scientific_name']}")
+    write_line(f"Summary: {plant_details['summary']}")
+
+    y -= 10
+    write_section("Advantages")
     for item in plant_details["advantages"]:
-        pdf.multi_cell(0, 8, safe_text("- " + item))
+        write_line(f"- {item}")
 
-    pdf.multi_cell(0, 8, safe_text(""))
-    pdf.multi_cell(0, 8, safe_text("Disadvantages:"))
+    y -= 5
+    write_section("Disadvantages")
     for item in plant_details["disadvantages"]:
-        pdf.multi_cell(0, 8, safe_text("- " + item))
+        write_line(f"- {item}")
 
-    pdf.multi_cell(0, 8, safe_text(""))
-    pdf.multi_cell(0, 8, safe_text("Uses:"))
+    y -= 5
+    write_section("Uses")
     for item in plant_details["uses"]:
-        pdf.multi_cell(0, 8, safe_text("- " + item))
+        write_line(f"- {item}")
 
-    pdf.multi_cell(0, 8, safe_text(""))
-    pdf.multi_cell(0, 8, safe_text("Treatment Steps:"))
+    y -= 5
+    write_section("Treatment Steps")
     for step in treatment:
-        clean_step = step.replace("✅", "").replace("🌿", "").replace("📄", "")
-        pdf.multi_cell(0, 8, safe_text("- " + clean_step))
+        write_line(f"- {step}")
 
-    pdf.multi_cell(
-        0,
-        8,
-        safe_text("Note: This app currently uses a Tree vs Plant model. For accurate disease and species prediction, train a plant disease/species dataset model.")
-    )
+    y -= 10
+    write_line("Note: Current model predicts Tree vs Plant only. Disease/species model needs separate dataset.", size=9)
 
-    return pdf.output(dest="S").encode("latin-1")
+    c.save()
+    buffer.seek(0)
 
+    return buffer.getvalue()
 
 def create_qr(text):
     qr = qrcode.make(text)

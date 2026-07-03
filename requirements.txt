@@ -5,3 +5,4 @@ pillow
 matplotlib
 fpdf2
 qrcode
+reportlab
