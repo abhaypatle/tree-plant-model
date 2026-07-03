@@ -222,65 +222,62 @@ def get_health_info(predicted_class, confidence):
 
 
 def create_pdf(predicted_class, confidence, severity, medicine, treatment, health_score, plant_name, plant_details):
+    def safe_text(text):
+        return str(text).encode("latin-1", "replace").decode("latin-1")
+
     pdf = FPDF()
     pdf.add_page()
+    pdf.set_auto_page_break(auto=True, margin=15)
 
     pdf.set_font("Arial", "B", 16)
-    pdf.cell(0, 10, "Plant Health Prediction Report", ln=True, align="C")
+    pdf.cell(0, 10, safe_text("Plant Health Prediction Report"), ln=True, align="C")
 
     pdf.ln(8)
     pdf.set_font("Arial", "", 12)
-    pdf.cell(0, 8, f"Date: {datetime.now().strftime('%d-%m-%Y %H:%M:%S')}", ln=True)
-    pdf.cell(0, 8, f"Prediction: {predicted_class}", ln=True)
-    pdf.cell(0, 8, f"Confidence: {confidence*100:.2f}%", ln=True)
-    pdf.cell(0, 8, f"Health Score: {health_score}/100", ln=True)
-    pdf.cell(0, 8, f"Severity Level: {severity}", ln=True)
-    pdf.cell(0, 8, f"Medicine Recommendation: {medicine}", ln=True)
 
-    pdf.ln(5)
-    pdf.set_font("Arial", "B", 13)
-    pdf.cell(0, 8, "Plant Details", ln=True)
+    lines = [
+        f"Date: {datetime.now().strftime('%d-%m-%Y %H:%M:%S')}",
+        f"Prediction: {predicted_class}",
+        f"Confidence: {confidence*100:.2f}%",
+        f"Health Score: {health_score}/100",
+        f"Severity Level: {severity}",
+        f"Medicine Recommendation: {medicine}",
+        "",
+        "Plant Details",
+        f"Plant Name: {plant_name}",
+        f"Local Name: {plant_details['local_name']}",
+        f"Scientific Name: {plant_details['scientific_name']}",
+        f"Short Summary: {plant_details['summary']}",
+        "",
+        "Advantages:"
+    ]
 
-    pdf.set_font("Arial", "", 12)
-    pdf.cell(0, 8, f"Plant Name: {plant_name}", ln=True)
-    pdf.cell(0, 8, f"Local Name: {plant_details['local_name']}", ln=True)
-    pdf.cell(0, 8, f"Scientific Name: {plant_details['scientific_name']}", ln=True)
-    pdf.multi_cell(0, 8, "Short Summary: " + plant_details["summary"])
+    for line in lines:
+        pdf.multi_cell(0, 8, safe_text(line))
 
-    pdf.ln(3)
-    pdf.set_font("Arial", "B", 12)
-    pdf.cell(0, 8, "Advantages:", ln=True)
-    pdf.set_font("Arial", "", 12)
     for item in plant_details["advantages"]:
-        pdf.multi_cell(0, 8, "- " + item)
+        pdf.multi_cell(0, 8, safe_text("- " + item))
 
-    pdf.set_font("Arial", "B", 12)
-    pdf.cell(0, 8, "Disadvantages:", ln=True)
-    pdf.set_font("Arial", "", 12)
+    pdf.multi_cell(0, 8, safe_text(""))
+    pdf.multi_cell(0, 8, safe_text("Disadvantages:"))
     for item in plant_details["disadvantages"]:
-        pdf.multi_cell(0, 8, "- " + item)
+        pdf.multi_cell(0, 8, safe_text("- " + item))
 
-    pdf.set_font("Arial", "B", 12)
-    pdf.cell(0, 8, "Uses:", ln=True)
-    pdf.set_font("Arial", "", 12)
+    pdf.multi_cell(0, 8, safe_text(""))
+    pdf.multi_cell(0, 8, safe_text("Uses:"))
     for item in plant_details["uses"]:
-        pdf.multi_cell(0, 8, "- " + item)
+        pdf.multi_cell(0, 8, safe_text("- " + item))
 
-    pdf.ln(3)
-    pdf.set_font("Arial", "B", 12)
-    pdf.cell(0, 8, "Treatment Steps:", ln=True)
-    pdf.set_font("Arial", "", 12)
-
+    pdf.multi_cell(0, 8, safe_text(""))
+    pdf.multi_cell(0, 8, safe_text("Treatment Steps:"))
     for step in treatment:
-        safe_step = step.replace("✅", "").replace("🌿", "").replace("📄", "")
-        pdf.multi_cell(0, 8, "- " + safe_step)
+        clean_step = step.replace("✅", "").replace("🌿", "").replace("📄", "")
+        pdf.multi_cell(0, 8, safe_text("- " + clean_step))
 
-    pdf.ln(5)
     pdf.multi_cell(
         0,
         8,
-        "Note: This app currently uses a Tree vs Plant model. "
-        "For accurate disease and species prediction, train a plant disease/species dataset model."
+        safe_text("Note: This app currently uses a Tree vs Plant model. For accurate disease and species prediction, train a plant disease/species dataset model.")
     )
 
     return pdf.output(dest="S").encode("latin-1")
