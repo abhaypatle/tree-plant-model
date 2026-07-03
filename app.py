@@ -3,6 +3,7 @@ import torch
 import torch.nn as nn
 from torchvision import transforms
 from PIL import Image
+import matplotlib.pyplot as plt
 
 MODEL_PATH = "simple_cnn_model.pth"
 IMAGE_SIZE = (250, 250)
@@ -24,7 +25,6 @@ st.markdown("""
     border-radius: 18px;
     text-align: center;
     color: white;
-    box-shadow: 0px 4px 12px rgba(0,0,0,0.2);
 }
 .result-box {
     background-color: #dff5e1;
@@ -45,6 +45,16 @@ st.markdown("""
     <p>CNN Deep Learning Model using PyTorch + Streamlit</p>
 </div>
 """, unsafe_allow_html=True)
+
+st.sidebar.title("📊 Project Info")
+st.sidebar.write("Model: CNN")
+st.sidebar.write("Classes: Tree, Plant")
+st.sidebar.write("Dataset Images: 111")
+st.sidebar.write("Framework: PyTorch")
+st.sidebar.write("Deployment: Streamlit Cloud")
+
+if "history" not in st.session_state:
+    st.session_state.history = []
 
 class SimpleCNN(nn.Module):
     def __init__(self, num_classes):
@@ -76,7 +86,6 @@ class SimpleCNN(nn.Module):
 @st.cache_resource
 def load_model():
     checkpoint = torch.load(MODEL_PATH, map_location=torch.device("cpu"))
-
     class_names = checkpoint["classes"]
 
     model = SimpleCNN(num_classes=len(class_names))
@@ -95,7 +104,6 @@ def get_transform():
 
 def predict(image, model, class_names):
     transform = get_transform()
-
     image = image.convert("RGB")
     image_tensor = transform(image).unsqueeze(0)
 
@@ -104,24 +112,27 @@ def predict(image, model, class_names):
         probabilities = torch.softmax(output, dim=1)
         confidence, predicted = torch.max(probabilities, 1)
 
-    return class_names[predicted.item()], confidence.item()
+    return class_names[predicted.item()], confidence.item(), probabilities[0]
 
 st.write("")
-st.write("Upload image and model will predict whether it is **Tree** or **Plant**.")
+st.write("Upload image or use camera. Model will predict whether it is **Tree** or **Plant**.")
 
-uploaded_file = st.file_uploader(
-    "Choose an image",
-    type=["jpg", "jpeg", "png", "webp"]
-)
+option = st.radio("Choose input method:", ["Upload Image", "Use Camera"])
+
+uploaded_file = None
+
+if option == "Upload Image":
+    uploaded_file = st.file_uploader("Choose an image", type=["jpg", "jpeg", "png", "webp"])
+else:
+    uploaded_file = st.camera_input("Take a photo")
 
 if uploaded_file is not None:
     image = Image.open(uploaded_file)
-
     st.image(image, caption="Uploaded Image", use_container_width=True)
 
     with st.spinner("Classifying image..."):
         model, class_names = load_model()
-        predicted_class, confidence = predict(image, model, class_names)
+        predicted_class, confidence, probabilities = predict(image, model, class_names)
 
     st.markdown(f"""
     <div class="result-box">
@@ -129,6 +140,45 @@ if uploaded_file is not None:
         Confidence: {confidence*100:.2f}%
     </div>
     """, unsafe_allow_html=True)
+
+    st.write("### Confidence Progress")
+    st.progress(float(confidence))
+
+    st.write("### Prediction Probabilities")
+    for i, cls in enumerate(class_names):
+        st.write(f"{cls}: {probabilities[i].item()*100:.2f}%")
+
+    fig, ax = plt.subplots()
+    ax.pie(
+        [p.item() for p in probabilities],
+        labels=class_names,
+        autopct="%1.1f%%"
+    )
+    st.pyplot(fig)
+
+    st.session_state.history.append(
+        f"{predicted_class} - {confidence*100:.2f}%"
+    )
+
+    st.write("### Prediction History")
+    st.write(st.session_state.history[-5:])
+
+    report = f"""
+Tree vs Plant Image Classifier Report
+
+Prediction: {predicted_class}
+Confidence: {confidence*100:.2f}%
+
+Model: CNN
+Framework: PyTorch
+App: Streamlit
+"""
+
+    st.download_button(
+        "📄 Download Prediction Report",
+        report,
+        file_name="prediction_report.txt"
+    )
 
 st.markdown("---")
 st.markdown("### 🛠 Tech Stack")
