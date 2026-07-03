@@ -1,5 +1,7 @@
+streamlit
 torch
 torchvision
 pillow
-streamlit
 matplotlib
+fpdf2
+qrcode
